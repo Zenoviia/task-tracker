@@ -1,0 +1,17 @@
+{
+  "name": "Bloom Task Orchestration",
+  "short_name": "Bloom",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FCFAFA",
+  "theme_color": "#F472B6",
+  "description": "Nurture your intentions with artistic precision.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3064/3064155.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

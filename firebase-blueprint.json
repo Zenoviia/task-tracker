@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user settings and preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Custom task categories"
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "softPinkTheme": { "type": "boolean" },
+            "motivationalQuotes": { "type": "boolean" }
+          }
+        },
+        "calendarIntegration": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "lastSynced": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "required": ["userId", "email"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A single task item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "completed": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "recurring": {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["none", "daily", "weekly", "monthly"] },
+            "frequency": { "type": "number" }
+          }
+        },
+        "reminders": {
+          "type": "array",
+          "items": { "type": "string", "format": "date-time" }
+        },
+        "calendarEventId": { "type": "string" }
+      },
+      "required": ["title", "userId", "completed"]
+    },
+    "MotivationalQuote": {
+      "title": "Motivational Quote",
+      "description": "Cache for AI generated quotes to prevent procrastination",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and settings"
+    },
+    "tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Tasks owned by users"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  
+  --color-artistic-soft: #FFF8F9;
+  --color-artistic-dark: #4A3B3E;
+  --color-artistic-rose: #D68294;
+  --color-artistic-pink: #F472B6;
+  --color-artistic-border: #FCE4E8;
+  --color-artistic-taupe: #A68C91;
+
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  --animate-spin-slow: spin-slow 8s linear infinite;
+}
+
+@layer base {
+  body {
+    @apply bg-artistic-soft text-artistic-dark font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5 {
+    @apply font-serif;
+  }
+}
+
+.soft-shadow {
+  box-shadow: 0 10px 30px -5px rgba(214, 130, 148, 0.15);
+}
+
+.art-card {
+  @apply bg-white rounded-[32px] border border-artistic-border transition-all duration-300;
+}
+
+.glass {
+  @apply bg-white/50 backdrop-blur-sm border border-artistic-border;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-artistic-rose/30 rounded-full hover:bg-artistic-rose/50 transition-colors;
+}
+
+.markdown-body {
+  @apply space-y-2;
+}
+
+.markdown-body p {
+  @apply mb-2 last:mb-0;
+}
+
+.markdown-body ul, .markdown-body ol {
+  @apply pl-4 my-2 list-disc;
+}
+
+.markdown-body li {
+  @apply mb-1;
+}
+
+.markdown-body strong {
+  @apply font-bold text-artistic-pink;
+}
+
+.markdown-body code {
+  @apply bg-artistic-soft px-1 rounded text-artistic-rose font-mono text-[10px];
+}
