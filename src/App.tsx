@@ -601,8 +601,13 @@ Example success: [{"title": "Action Item", "description": "Quick detail."}]`;
 
   const stats = useMemo(() => {
     const now = new Date();
-    const weeklyTasks = tasks.filter(t => isSameWeek(t.createdAt, now));
-    const totalCount = weeklyTasks.length;
+    // Include all non-completed tasks (active) + tasks completed this week
+    const relevantTasks = tasks.filter(t => {
+      if (!t.completed) return true;
+      if (t.completedAt && isSameWeek(t.completedAt, now)) return true;
+      return false;
+    });
+    const totalCount = relevantTasks.length;
 
     const calculateTaskProgress = (task: Task) => {
       if (task.completed) return 1;
@@ -613,11 +618,11 @@ Example success: [{"title": "Action Item", "description": "Quick detail."}]`;
       return 0;
     };
 
-    const totalProgress = weeklyTasks.reduce((acc, t) => acc + calculateTaskProgress(t), 0);
+    const totalProgress = relevantTasks.reduce((acc, t) => acc + calculateTaskProgress(t), 0);
     const percentage = totalCount > 0 ? Math.round((totalProgress / totalCount) * 100) : 0;
 
     const categoryBreakdown = customCategories.map(cat => {
-      const catTasks = weeklyTasks.filter(t => t.category === cat);
+      const catTasks = relevantTasks.filter(t => t.category === cat);
       const catTotal = catTasks.length;
       if (catTotal === 0) return { name: cat, total: 0, completed: 0, percentage: 0 };
       
@@ -913,98 +918,132 @@ Example success: [{"title": "Action Item", "description": "Quick detail."}]`;
                       </div>
                     </motion.div>
                   ) : (
-                    filteredTasks.map((task) => (
-                      <motion.div
-                        key={task.id}
-                        layout="position"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        transition={{ 
-                          layout: { 
-                            type: "spring", 
-                            stiffness: 300, 
-                            damping: 35, 
-                            mass: 0.8 
-                          },
-                          opacity: { duration: 0.2 }
-                        }}
-                        className={cn(
-                          "group bg-white rounded-[32px] border border-artistic-border p-6 transition-shadow hover:soft-shadow relative overflow-hidden w-full",
-                          task.completed && "opacity-60 bg-stone-50"
-                        )}
-                        onClick={() => openEditModal(task)}
-                      >
-                        <div className="flex items-center justify-between w-full cursor-pointer">
-                          <div className="flex items-center space-x-5 flex-1 min-w-0">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleComplete(task);
-                              }}
-                              className={cn(
-                                "w-7 h-7 rounded-2xl border-2 flex items-center justify-center transition-all flex-shrink-0",
-                                task.completed 
-                                  ? "bg-artistic-pink border-artistic-pink" 
-                                  : "border-artistic-border group-hover:border-artistic-pink"
-                              )}
-                            >
-                              <AnimatePresence mode="wait">
-                                {task.completed && (
-                                  <motion.div
-                                    key="check"
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0, opacity: 0 }}
-                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                  >
-                                    <CheckCircle2 size={16} className="text-white" />
-                                  </motion.div>
+                    filteredTasks.map((task) => {
+                      const isOverdue = !task.completed && task.dueDate && isBefore(task.dueDate, new Date());
+                      
+                      return (
+                        <motion.div
+                          key={task.id}
+                          layout="position"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ 
+                            layout: { 
+                              type: "spring", 
+                              stiffness: 300, 
+                              damping: 35, 
+                              mass: 0.8 
+                            },
+                            opacity: { duration: 0.2 }
+                          }}
+                          className={cn(
+                            "group bg-white rounded-[32px] border p-6 transition-all hover:soft-shadow relative overflow-hidden w-full",
+                            task.completed ? "opacity-60 bg-stone-50 border-artistic-border" : "border-artistic-border",
+                            isOverdue && "border-red-500 bg-red-50/50 shadow-lg shadow-red-100/50 scale-[1.02] border-2"
+                          )}
+                          onClick={() => openEditModal(task)}
+                        >
+                          {isOverdue && (
+                            <div className="absolute top-0 left-0 w-1 h-full bg-red-500" />
+                          )}
+                          <div className="flex items-center justify-between w-full cursor-pointer">
+                            <div className="flex items-center space-x-5 flex-1 min-w-0">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleComplete(task);
+                                }}
+                                className={cn(
+                                  "w-7 h-7 rounded-2xl border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                  task.completed 
+                                    ? "bg-artistic-pink border-artistic-pink" 
+                                    : isOverdue 
+                                      ? "border-red-400 bg-white"
+                                      : "border-artistic-border group-hover:border-artistic-pink"
                                 )}
-                              </AnimatePresence>
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <p className={cn(
-                                "text-lg font-sans font-bold text-artistic-dark truncate transition-all",
-                                task.completed && "line-through opacity-50"
-                              )}>
-                                {task.title}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-3 mt-2">
-                                <span className="text-[9px] px-2.5 py-1 rounded-full uppercase font-bold tracking-widest bg-artistic-soft text-artistic-rose border border-artistic-border">
-                                  {task.category}
-                                </span>
-                                {task.recurring && task.recurring.type !== 'none' && (
-                                  <span className="text-[9px] px-2.5 py-1 rounded-full uppercase font-bold tracking-widest bg-indigo-50 text-indigo-500 border border-indigo-100 flex items-center gap-1">
-                                    <History size={10} className="animate-spin-slow" />
-                                    {task.recurring.type === 'daily' && 'Repeats Daily'}
-                                    {task.recurring.type === 'weekly' && 'Repeats Weekly'}
-                                    {task.recurring.type === 'monthly' && 'Repeats Monthly'}
+                              >
+                                <AnimatePresence mode="wait">
+                                  {task.completed ? (
+                                    <motion.div
+                                      key="check"
+                                      initial={{ scale: 0, opacity: 0 }}
+                                      animate={{ scale: 1, opacity: 1 }}
+                                      exit={{ scale: 0, opacity: 0 }}
+                                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    >
+                                      <CheckCircle2 size={16} className="text-white" />
+                                    </motion.div>
+                                  ) : isOverdue && (
+                                    <motion.div
+                                      initial={{ rotate: -10 }}
+                                      animate={{ rotate: 10 }}
+                                      transition={{ repeat: Infinity, duration: 1, repeatType: "mirror" }}
+                                    >
+                                      <Clock size={14} className="text-red-500" />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className={cn(
+                                    "text-lg font-sans font-bold text-artistic-dark truncate transition-all",
+                                    task.completed && "line-through opacity-50",
+                                    isOverdue && "text-red-700"
+                                  )}>
+                                    {task.title}
+                                  </p>
+                                  {isOverdue && (
+                                    <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter animate-pulse">
+                                      Overdue
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className={cn(
+                                    "text-[9px] px-2.5 py-1 rounded-full uppercase font-bold tracking-widest border",
+                                    isOverdue 
+                                      ? "bg-red-100 text-red-600 border-red-200" 
+                                      : "bg-artistic-soft text-artistic-rose border-artistic-border"
+                                  )}>
+                                    {task.category}
                                   </span>
-                                )}
-                                {task.dueDate && (
-                                  <span className="text-[9px] font-bold text-artistic-taupe flex items-center gap-1">
-                                    <Clock size={10} /> {format(task.dueDate, 'MMM d, h:mm a')}
-                                  </span>
-                                )}
+                                  {task.recurring && task.recurring.type !== 'none' && (
+                                    <span className="text-[9px] px-2.5 py-1 rounded-full uppercase font-bold tracking-widest bg-indigo-50 text-indigo-500 border border-indigo-100 flex items-center gap-1">
+                                      <History size={10} className="animate-spin-slow" />
+                                      {task.recurring.type === 'daily' && 'Repeats Daily'}
+                                      {task.recurring.type === 'weekly' && 'Repeats Weekly'}
+                                      {task.recurring.type === 'monthly' && 'Repeats Monthly'}
+                                    </span>
+                                  )}
+                                  {task.dueDate && (
+                                    <span className={cn(
+                                      "text-[9px] font-bold flex items-center gap-1",
+                                      isOverdue ? "text-red-600" : "text-artistic-taupe"
+                                    )}>
+                                      <Clock size={10} /> {format(task.dueDate, 'MMM d, h:mm a')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button className="p-2 hover:bg-artistic-soft rounded-xl"><Pencil size={18} /></button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTaskToDelete(task);
+                                }}
+                                className="p-2 hover:bg-red-50 text-red-400 rounded-xl"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 hover:bg-artistic-soft rounded-xl"><Pencil size={18} /></button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTaskToDelete(task);
-                              }}
-                              className="p-2 hover:bg-red-50 text-red-400 rounded-xl"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
+                        </motion.div>
+                      );
+                    })
                   )}
                 </AnimatePresence>
               </div>
