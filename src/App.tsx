@@ -68,6 +68,9 @@ import { Task, TaskCategory, RecurringType, OperationType, UserProfile, Subtask 
 import { cn } from './lib/utils';
 
 import { AIAssistant } from './components/AIAssistant';
+import { PatternShowcase } from './components/PatternShowcase';
+import { CommandHistory, ToggleCompleteCommand } from './patterns/behavioral';
+
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -85,6 +88,7 @@ export default function App() {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [showArchive, setShowArchive] = useState(false);
+  const [undoToast, setUndoToast] = useState<string | null>(null);
 
   // New task form state
   const [title, setTitle] = useState('');
@@ -327,6 +331,32 @@ export default function App() {
     }
   };
 
+  const handleAddTaskDirectly = async (task: Task) => {
+    if (!user) return;
+    try {
+      const parsedTask = {
+        title: task.title,
+        description: task.description || null,
+        category: task.category,
+        dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate) : null,
+        completed: task.completed,
+        completedAt: task.completedAt ? Timestamp.fromDate(task.completedAt) : null,
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        recurring: task.recurring,
+        reminders: task.reminders || [],
+        subtasks: task.subtasks?.map(st => ({
+          ...st,
+          dueDate: st.dueDate ? Timestamp.fromDate(st.dueDate) : null
+        })) || []
+      };
+      await addDoc(collection(db, 'tasks'), parsedTask);
+    } catch (e) {
+      console.error("Direct add task error in app: ", e);
+    }
+  };
+
   const toggleComplete = async (task: Task) => {
     if (!task.id) return;
     
@@ -340,13 +370,20 @@ export default function App() {
 
     const isCompleting = !task.completed;
     const path = `tasks/${task.id}`;
-    
-    try {
-      await updateDoc(doc(db, 'tasks', task.id), {
-        completed: isCompleting,
-        completedAt: isCompleting ? serverTimestamp() : null,
+
+    // Створенная колбек обгортка для інтеграції патерну Command
+    const updateFn = async (id: string, fields: Partial<Task>) => {
+      await updateDoc(doc(db, 'tasks', id), {
+        ...fields,
         updatedAt: serverTimestamp(),
       });
+    };
+
+    const cmd = new ToggleCompleteCommand(task, updateFn);
+    CommandHistory.push(cmd);
+    
+    try {
+      await cmd.execute();
       
       // If recurring and completing, handle creating next instance
       if (isCompleting && task.recurring.type !== 'none' && task.dueDate) {
@@ -374,6 +411,9 @@ export default function App() {
         };
         await addDoc(collection(db, 'tasks'), nextTaskData);
       }
+
+      setUndoToast(`Змінено статус: "${task.title}".`);
+      setTimeout(() => setUndoToast(null), 5000);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -1620,6 +1660,42 @@ Example success: [{"title": "Action Item", "description": "Quick detail."}]`;
       </AnimatePresence>
 
       <AIAssistant tasks={tasks} categories={customCategories} />
+      <PatternShowcase 
+        tasks={tasks}
+        userId={user?.uid || ''}
+        onRefreshTasks={() => {}} 
+        onAddTaskDirectly={handleAddTaskDirectly}
+        onTriggerUndoToast={(msg) => {
+          setUndoToast(msg);
+          setTimeout(() => setUndoToast(null), 4000);
+        }}
+      />
+
+      {/* Floating Undo Toast Notification */}
+      <AnimatePresence>
+        {undoToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed bottom-6 right-6 z-[200] bg-stone-900 border border-stone-800 text-stone-100 px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 text-xs font-bold font-sans"
+          >
+            <span>{undoToast}</span>
+            <button
+              onClick={async () => {
+                const label = await CommandHistory.undo();
+                if (label) {
+                  setUndoToast(`Скасовано дію: ${label}`);
+                  setTimeout(() => setUndoToast(null), 3000);
+                }
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl transition-all"
+            >
+              Скасувати (Undo)
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
